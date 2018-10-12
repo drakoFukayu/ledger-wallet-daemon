@@ -33,7 +33,7 @@ object Account {
     private val isBitcoin: Boolean = coreA.isInstanceOfBitcoinLikeAccount
 
     def balance: Future[Long] = coreA.getBalance().map { balance =>
-      println(s"Hello account $index: ${balance.toLong}")
+      debug(s"Account $index: ${balance.toLong}")
       balance.toLong
     }
 

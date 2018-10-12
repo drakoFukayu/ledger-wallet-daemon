@@ -104,7 +104,7 @@ class Wallet(private val coreW: core.Wallet, private val pool: Pool) extends Log
       (for (derivationResult <- accountDerivations.derivations) yield HexUtils.valueOf(derivationResult.pubKey.get)).asArrayList,
       (for (derivationResult <- accountDerivations.derivations) yield HexUtils.valueOf(derivationResult.chainCode.get)).asArrayList
     )
-    accountCreationInfo.getOwners.asScala.foreach(o => println(s"Owner: $o"))
+    accountCreationInfo.getOwners.asScala.foreach(o => debug(s"Owner: $o"))
     accountCreationEpilogue(coreW.newAccountWithInfo(accountCreationInfo), accountDerivations.accountIndex)
   }
 
