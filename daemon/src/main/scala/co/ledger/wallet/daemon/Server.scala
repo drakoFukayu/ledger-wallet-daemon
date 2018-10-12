@@ -24,6 +24,7 @@ class ServerImpl extends HttpServer {
     router
       .filter[LoggingMDCFilter[Request, Response]]
       .filter[TraceIdMDCFilter[Request, Response]]
+      .filter[CorrelationIdFilter[Request, Response]]
       .filter[CommonFilters]
       .filter[AccessLoggingFilter[Request]]
       .filter[DemoUserAuthenticationFilter]
