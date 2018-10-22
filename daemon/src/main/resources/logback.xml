@@ -25,7 +25,7 @@
 <configuration>
     <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
         <encoder immediateFlush="true">
-            <pattern>{"@timestamp":"%date", "level":"%level", "thread":"%thread", "traceid": "%X{traceId}", "correlationid": "%X{correlationId}", "message":"%msg"}%n</pattern>
+            <pattern>%date %thread TraceId=%X{traceId} CorrelationId=%X{correlationId} [%level] %logger{0} : %msg%n</pattern>
         </encoder>
     </appender>
     <logger name="co.ledger.wallet.daemon.libledger_core" level="debug" />

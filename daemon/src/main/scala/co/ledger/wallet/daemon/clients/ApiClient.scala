@@ -34,6 +34,7 @@ class ApiClient(implicit val ec: ExecutionContext) {
   def getFees(currencyName: String): Future[FeeInfo] = {
     val path = currencyName match {
       case "bitcoin" => "/blockchain/v2/btc/fees"
+      case "bitcoin_cash" => "/blockchain/v2/abc/fees"
       case "bitcoin_testnet" => "/blockchain/v2/btc_testnet/fees"
       case "dogecoin" => "/blockchain/v2/doge/fees"
       case "litecoin" => "/blockchain/v2/ltc/fees"
