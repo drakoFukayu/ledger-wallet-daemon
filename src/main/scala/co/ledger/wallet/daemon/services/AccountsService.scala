@@ -104,7 +104,7 @@ class AccountsService @Inject()(daemonCache: DaemonCache) extends DaemonService 
         lastBlockHeight <- wallet.lastBlockHeight
         count <- account.getUtxoCount()
         utxos <- account.getUtxo(offset, batch).map(_.map(output => {
-          UTXOView(output.getAddress, output.getBlockHeight, lastBlockHeight - output.getBlockHeight, output.getValue.toBigInt.asScala)
+          UTXOView(output.getTransactionHash, output.getOutputIndex, output.getAddress, output.getBlockHeight, lastBlockHeight - output.getBlockHeight, output.getValue.toBigInt.asScala)
         }))
       } yield (utxos, count)
     }

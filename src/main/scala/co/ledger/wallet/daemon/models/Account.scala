@@ -541,6 +541,8 @@ case class FreshAddressView(
                            )
 
 case class UTXOView(
+                     @JsonProperty("hash") hash: String,
+                     @JsonProperty("output_index") output_index: Long,
                      @JsonProperty("address") address: String,
                      @JsonProperty("height") height: Long,
                      @JsonProperty("confirmations") confirmations: Long,
