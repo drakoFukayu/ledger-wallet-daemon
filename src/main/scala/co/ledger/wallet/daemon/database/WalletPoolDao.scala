@@ -6,7 +6,7 @@ import java.util.Date
 import co.ledger.core.{OperationType, Wallet}
 import co.ledger.wallet.daemon.configurations.DaemonConfiguration
 import co.ledger.wallet.daemon.configurations.DaemonConfiguration.CoreDbConfig
-import co.ledger.wallet.daemon.database.WalletPoolDao.dateDecoder
+import co.ledger.wallet.daemon.database.WalletPoolDao._
 import co.ledger.wallet.daemon.models.AccountInfo
 import co.ledger.wallet.daemon.models.Operations.OperationView
 import co.ledger.wallet.daemon.models.coins.{BitcoinInputView, BitcoinOutputView, BitcoinTransactionView, CommonBlockView}
@@ -72,17 +72,27 @@ class WalletPoolDao(poolName: String)(implicit val ec: ExecutionContext) extends
       s"AND bop.uid IN ('${opUids.mkString("','")}') " +
       s"OFFSET $offset LIMIT $limit"
 
-  private val btcOperationQuery: (AccountInfo, Int, Int) => OperationUid = (accInfo: AccountInfo, offset: Int, limit: Int) =>
-    "SELECT o.uid, o.date, bop.transaction_hash, b.height as block_height, b.time as block_time, b.hash as block_hash, o.type, o.amount, o.fees, o.senders, o.recipients " +
-      "FROM accounts a, wallets w, operations o, bitcoin_operations bop, blocks b " +
-      s"WHERE w.name='${accInfo.walletName}' AND a.idx='${accInfo.accountIndex}' " +
-      "AND a.wallet_uid=w.uid AND o.account_uid=a.uid AND o.uid = bop.uid AND o.block_uid=b.uid " +
-      s"OFFSET $offset LIMIT $limit"
+  private val btcOperationQuery: (AccountInfo, Ordering.OperationOrder, Option[Seq[OperationUid]], Int, Int) => OperationUid =
+    (accInfo: AccountInfo, order: Ordering.OperationOrder, filteredUids: Option[Seq[OperationUid]], offset: Int, limit: Int) =>
+      "SELECT o.uid, o.date, bop.transaction_hash, b.height as block_height, b.time as block_time, b.hash as block_hash, o.type, o.amount, o.fees, o.senders, o.recipients " +
+        "FROM accounts a, wallets w, operations o, bitcoin_operations bop, blocks b " +
+        s"WHERE w.name='${accInfo.walletName}' AND a.idx='${accInfo.accountIndex}' " +
+        "AND a.wallet_uid=w.uid AND o.account_uid=a.uid AND o.uid = bop.uid AND o.block_uid=b.uid " +
+        filteredUids.fold("")(uids => s"AND o.uid IN ('${uids.mkString("','")}') ") +
+        "ORDER BY o.date " + order.value +
+        s" OFFSET $offset LIMIT $limit"
 
   /**
     * List operations from an account
     */
-  def listOperations(a: AccountInfo, w: Wallet, offset: Int, limit: Int): Future[Seq[OperationView]] = {
+  def listAllOperations(a: AccountInfo, w: Wallet, offset: Int, limit: Int): Future[Seq[OperationView]] = {
+    listOperations(a, w, None, offset, limit)
+  }
+
+  /**
+    * List operations from an account
+    */
+  def listOperations(a: AccountInfo, w: Wallet, filteredUids: Option[Seq[OperationUid]], offset: Int, limit: Int): Future[Seq[OperationView]] = {
     logger.info(s"Retrieving operations for account : $a - limit=$limit offset=$offset")
     val currency = w.getCurrency
     val currencyName = currency.getName
@@ -90,7 +100,7 @@ class WalletPoolDao(poolName: String)(implicit val ec: ExecutionContext) extends
     var uids = Seq[OperationUid]()
 
     def retrievePartialOperations = {
-      queryBitcoinOperations[PartialOperation](a, offset, limit) {
+      queryBitcoinOperations[PartialOperation](a, filteredUids, offset, limit) {
         row => {
           val opUid = row.get[String]("uid")
           uids = uids :+ opUid
@@ -178,8 +188,8 @@ class WalletPoolDao(poolName: String)(implicit val ec: ExecutionContext) extends
     executeQuery[T](btcInputQuery(opUids, offset, limit))(f)
   }
 
-  private def queryBitcoinOperations[T](accInfo: AccountInfo, offset: Int, limit: Int)(f: Row => T) = {
-    executeQuery[T](btcOperationQuery(accInfo, offset, limit))(f)
+  private def queryBitcoinOperations[T](accInfo: AccountInfo, filteredUids: Option[Seq[OperationUid]], offset: Int, limit: Int)(f: Row => T) = {
+    executeQuery[T](btcOperationQuery(accInfo, Ordering.Ascending, filteredUids, offset, limit))(f)
   }
 
   def executeQuery[T](query: String)(f: Row => T): Future[Seq[T]] = {
@@ -204,4 +214,21 @@ object WalletPoolDao {
     },
     (b, c) => Try(parseDate(Buffers.readString(b, c)))
   )
+
+  object Ordering {
+
+    sealed trait OperationOrder {
+      val value: String
+    }
+
+    case object Ascending extends OperationOrder {
+      override val value: String = "ASC"
+    }
+
+    case object Descending extends OperationOrder {
+      override val value: String = "DSC"
+    }
+
+  }
+
 }
