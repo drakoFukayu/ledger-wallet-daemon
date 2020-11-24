@@ -90,6 +90,13 @@ class WalletPoolDao(poolName: String)(implicit val ec: ExecutionContext) extends
   }
 
   /**
+    * Find Operation
+    */
+  def findOperationByUid(a: AccountInfo, w: Wallet, uid: OperationUid, offset: Int, limit: Int): Future[Option[OperationView]] = {
+    listOperations(a, w, Some(Seq(uid)), offset, limit).map(_.headOption)
+  }
+
+  /**
     * List operations from an account
     */
   def listOperations(a: AccountInfo, w: Wallet, filteredUids: Option[Seq[OperationUid]], offset: Int, limit: Int): Future[Seq[OperationView]] = {
@@ -199,6 +206,7 @@ class WalletPoolDao(poolName: String)(implicit val ec: ExecutionContext) extends
 }
 
 object WalletPoolDao {
+  def apply(name: String)(implicit ec: ExecutionContext) = new WalletPoolDao(name)
 
   import java.text.SimpleDateFormat
 
