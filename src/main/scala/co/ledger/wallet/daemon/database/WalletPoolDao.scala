@@ -159,32 +159,31 @@ class WalletPoolDao(poolName: String)(implicit val ec: ExecutionContext) extends
   }
 
   // TODO : offset / limit for resilience
-  def findBitcoinOutputs(opUids: Seq[OperationUid]): Future[Seq[(OperationUid, BitcoinOutputView)]] = {
-    queryBitcoinOutputs[(OperationUid, BitcoinOutputView)](opUids, 0, Int.MaxValue)(row => {
-      val opUid = row.get[String]("uid")
-      val outputView = BitcoinOutputView(
-        row.get[String]("address"),
-        row.get[String]("hash"),
-        row.get[Int]("idx"),
-        row.get[String]("amount"),
-        row.get[String]("script"),
+  def findBitcoinOutputs(opUids: Seq[OperationUid]): Future[Seq[(OperationUid, BitcoinOutputView)]] =
+    queryBitcoinOutputs[(OperationUid, BitcoinOutputView)](opUids, 0, Int.MaxValue) {
+      row => (row.get[String]("uid"), BitcoinOutputView(
+          row.get[String]("address"),
+          row.get[String]("hash"),
+          row.get[Int]("idx"),
+          row.get[String]("amount"),
+          row.get[String]("script"))
       )
-      (opUid, outputView)
-    })
-  }
+    }
 
   def findBitcoinInputs(opUids: Seq[OperationUid]): Future[Seq[(OperationUid, BitcoinInputView)]] = {
-    queryBitcoinInputs[(OperationUid, BitcoinInputView)](opUids, 0, Int.MaxValue)(row => {
-      val opUid = row.get[String]("uid")
-      val outputView = BitcoinInputView(
-        row.get[String]("address"),
-        row.get[String]("amount"),
-        row.getOption[String]("coinbase"),
-        row.getOption[String]("previous_tx_hash"),
-        row.getOption[Int]("previous_output_idx")
-      )
-      (opUid, outputView)
-    })
+    queryBitcoinInputs[(OperationUid, BitcoinInputView)](opUids, 0, Int.MaxValue) {
+      row => {
+        val opUid = row.get[String]("uid")
+        val outputView = BitcoinInputView(
+          row.get[String]("address"),
+          row.get[String]("amount"),
+          row.getOption[String]("coinbase"),
+          row.getOption[String]("previous_tx_hash"),
+          row.getOption[Int]("previous_output_idx")
+        )
+        (opUid, outputView)
+      }
+    }
   }
 
   private def queryBitcoinOutputs[T](opUids: Seq[OperationUid], offset: Int, limit: Int)(f: Row => T) = {
@@ -206,7 +205,7 @@ class WalletPoolDao(poolName: String)(implicit val ec: ExecutionContext) extends
 }
 
 object WalletPoolDao {
-  def apply(name: String)(implicit ec: ExecutionContext) = new WalletPoolDao(name)
+  def apply(name: String)(implicit ec: ExecutionContext): WalletPoolDao = new WalletPoolDao(name)
 
   import java.text.SimpleDateFormat
 
