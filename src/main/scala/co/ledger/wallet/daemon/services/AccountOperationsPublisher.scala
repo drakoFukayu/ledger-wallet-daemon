@@ -3,14 +3,14 @@ package co.ledger.wallet.daemon.services
 import java.lang
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.{Executors, ThreadFactory}
-import cats.implicits._
 
+import cats.implicits._
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.event.LoggingReceive
 import cats.data.OptionT
 import co.ledger.core._
 import co.ledger.core.implicits._
-import co.ledger.wallet.daemon.database.WalletPoolDao
+import co.ledger.wallet.daemon.database.core.WalletPoolDao
 import co.ledger.wallet.daemon.exceptions.ERC20NotFoundException
 import co.ledger.wallet.daemon.libledger_core.async.LedgerCoreExecutionContext
 import co.ledger.wallet.daemon.models.Account.RichCoreAccount
