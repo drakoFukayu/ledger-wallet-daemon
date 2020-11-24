@@ -1,5 +1,7 @@
 package co.ledger.wallet.daemon.database
 
+import co.ledger.wallet.daemon.async.MDCPropagatingExecutionContext.Implicits.global
+
 import co.ledger.wallet.daemon.models.{AccountInfo, Pool}
 import co.ledger.wallet.daemon.utils.NativeLibLoader
 import com.twitter.inject.Logging

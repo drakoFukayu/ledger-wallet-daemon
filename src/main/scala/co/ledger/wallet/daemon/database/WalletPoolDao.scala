@@ -1,18 +1,25 @@
 package co.ledger.wallet.daemon.database
 
-import java.time.LocalDateTime
+import java.time.Instant
+import java.util.Date
 
-import co.ledger.core.Wallet
+import co.ledger.core.{OperationType, Wallet}
 import co.ledger.wallet.daemon.configurations.DaemonConfiguration
 import co.ledger.wallet.daemon.configurations.DaemonConfiguration.CoreDbConfig
+import co.ledger.wallet.daemon.database.WalletPoolDao.dateDecoder
 import co.ledger.wallet.daemon.models.AccountInfo
-import co.ledger.wallet.daemon.models.coins.{BitcoinInputView, BitcoinOutputView}
+import co.ledger.wallet.daemon.models.Operations.OperationView
+import co.ledger.wallet.daemon.models.coins.{BitcoinInputView, BitcoinOutputView, BitcoinTransactionView, CommonBlockView}
 import com.twitter.finagle.Postgres
+import com.twitter.finagle.postgres.values.ValueDecoder.instance
+import com.twitter.finagle.postgres.values.{Buffers, ValueDecoder}
 import com.twitter.finagle.postgres.{PostgresClientImpl, Row}
 import com.twitter.inject.Logging
-import com.twitter.util.Future
+import com.twitter.util.{Future, Try}
 
-class WalletPoolDao(poolName: String) extends Logging {
+import scala.concurrent.ExecutionContext
+
+class WalletPoolDao(poolName: String)(implicit val ec: ExecutionContext) extends Logging {
   val config: CoreDbConfig = DaemonConfiguration.coreDbConfig
 
   val client: PostgresClientImpl = connectionPool
@@ -25,8 +32,11 @@ class WalletPoolDao(poolName: String) extends Logging {
   case class PartialOperation(uid: String,
                               currencyName: String,
                               currencyFamily: String,
-                              time: LocalDateTime,
+                              date: Date,
+                              txHash: String,
                               blockHeight: Option[Long],
+                              blockHash: Option[String],
+                              blockTime: Option[Date],
                               opType: String,
                               amount: BigInt,
                               fees: BigInt,
@@ -63,20 +73,20 @@ class WalletPoolDao(poolName: String) extends Logging {
       s"OFFSET $offset LIMIT $limit"
 
   private val btcOperationQuery: (AccountInfo, Int, Int) => OperationUid = (accInfo: AccountInfo, offset: Int, limit: Int) =>
-    "SELECT o.uid, o.date, b.height, o.type, o.amount, o.fees, o.senders, o.recipients " +
-    "FROM accounts a, wallets w, operations o, blocks b " +
-    s"WHERE w.name='${accInfo.walletName}' AND a.idx='${accInfo.accountIndex}' " +
-    "AND a.wallet_uid=w.uid AND o.account_uid=a.uid AND o.block_uid=b.uid " +
-    s"OFFSET $offset LIMIT $limit"
+    "SELECT o.uid, o.date, bop.transaction_hash, b.height as block_height, b.time as block_time, b.hash as block_hash, o.type, o.amount, o.fees, o.senders, o.recipients " +
+      "FROM accounts a, wallets w, operations o, bitcoin_operations bop, blocks b " +
+      s"WHERE w.name='${accInfo.walletName}' AND a.idx='${accInfo.accountIndex}' " +
+      "AND a.wallet_uid=w.uid AND o.account_uid=a.uid AND o.uid = bop.uid AND o.block_uid=b.uid " +
+      s"OFFSET $offset LIMIT $limit"
 
   /**
     * List operations from an account
     */
-  def listOperations(a: AccountInfo, w: Wallet, offset: Int, limit: Int): Future[Seq[PartialOperation]] = {
+  def listOperations(a: AccountInfo, w: Wallet, offset: Int, limit: Int): Future[Seq[OperationView]] = {
     logger.info(s"Retrieving operations for account : $a - limit=$limit offset=$offset")
     val currency = w.getCurrency
     val currencyName = currency.getName
-    val currencyFamily = currency.getWalletType.name()
+    val currencyFamily = currency.getWalletType
     var uids = Seq[OperationUid]()
 
     def retrievePartialOperations = {
@@ -85,9 +95,12 @@ class WalletPoolDao(poolName: String) extends Logging {
           val opUid = row.get[String]("uid")
           uids = uids :+ opUid
           PartialOperation(
-            opUid, currencyName, currencyFamily,
-            row.get[LocalDateTime]("date"),
-            row.getOption[Long]("height"),
+            opUid, currencyName, currencyFamily.name(),
+            row.get[Date]("date"),
+            row.get[String]("transaction_hash"),
+            row.getOption[Long]("block_height"),
+            row.getOption[String]("block_hash"),
+            row.getOption[Date]("block_time"),
             row.get[String]("type"),
             BigInt(row.get[String]("amount"), 16),
             BigInt(row.get[String]("fees"), 16),
@@ -104,15 +117,28 @@ class WalletPoolDao(poolName: String) extends Logging {
       outputs <- findBitcoinOutputs(uids)
       inputs <- findBitcoinInputs(uids)
     } yield {
-      logger.info(s"Found outputs : $outputs")
-      logger.info(s"Found inputs : $inputs")
-      operations
-    }
-  }
+      val opIntputs = inputs.groupBy(_._1).map { case (opUid, pair) => (opUid, pair.map(_._2)) }
+      val opOutputs = outputs.groupBy(_._1).map { case (opUid, pair) => (opUid, pair.map(_._2)) }
 
-  def executeQuery[T](query: String)(f: Row => T): Future[Seq[T]] = {
-    logger.info(s"SQL EXECUTION : $query")
-    client.select[T](query)(f)
+      operations.map(pop => {
+        val confirmations = 0 // pop.blockHeight.fold(0L)(opHeight => (lastBlock.getHeight - opHeight) + 1)
+        val txView = (opIntputs.get(pop.uid), opOutputs.get(pop.uid)) match {
+          case (Some(inputs), Some(outputs)) =>
+            val blockView = (pop.blockHash, pop.blockHeight, pop.blockTime) match {
+              case (Some(hash), Some(height), Some(time)) => Some(CommonBlockView(hash, height, time))
+              case _ => None
+            }
+            Some(BitcoinTransactionView(blockView, Some(pop.fees.toString()), pop.txHash, pop.date, inputs, 0L, outputs))
+          case _ => None
+        }
+        OperationView(pop.uid, currencyName, currencyFamily, None, confirmations,
+          pop.date,
+          pop.blockHeight,
+          OperationType.valueOf(pop.opType),
+          pop.amount.toString(), pop.fees.toString(), a.walletName, a.accountIndex, pop.senders, pop.recipients, Seq.empty, txView)
+
+      })
+    }
   }
 
   // TODO : offset / limit for resilience
@@ -155,4 +181,27 @@ class WalletPoolDao(poolName: String) extends Logging {
   private def queryBitcoinOperations[T](accInfo: AccountInfo, offset: Int, limit: Int)(f: Row => T) = {
     executeQuery[T](btcOperationQuery(accInfo, offset, limit))(f)
   }
+
+  def executeQuery[T](query: String)(f: Row => T): Future[Seq[T]] = {
+    logger.info(s"SQL EXECUTION : $query")
+    client.select[T](query)(f)
+  }
+}
+
+object WalletPoolDao {
+
+  import java.text.SimpleDateFormat
+
+  val format = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssZ")
+
+  def parseDate(dateStr: String): Date = {
+    Date.from(Instant.parse(dateStr))
+  }
+
+  implicit val dateDecoder: ValueDecoder[Date] = instance(
+    s => Try {
+      parseDate(s)
+    },
+    (b, c) => Try(parseDate(Buffers.readString(b, c)))
+  )
 }
