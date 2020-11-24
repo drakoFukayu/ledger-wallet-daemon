@@ -42,10 +42,8 @@ class LogOnlyPolicy(label: String) extends RejectedExecutionHandler with Logging
 }
 
 object LedgerCoreExecutionContext extends Logging {
-  val maxCoreSerialCtx = 12
-
+  val maxCoreSerialCtx = 12 // TODO make it configurable
   private val serialExecutionContexts: Seq[LedgerCoreExecutionContext] = (0 until maxCoreSerialCtx).map(createSerialExecutionContext)
-  logger.info(s"Serial Array size : ${serialExecutionContexts.size} -> $serialExecutionContexts")
 
   def createSerialExecutionContext(idx: Int): LedgerCoreExecutionContext = {
     LedgerCoreExecutionContext(ExecutionContext.fromExecutorService(new ThreadPoolExecutor(1, 1, 60L, TimeUnit.SECONDS,
