@@ -4,18 +4,18 @@ import java.lang
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.{Executors, ThreadFactory}
 
-import cats.implicits._
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.event.LoggingReceive
 import cats.data.OptionT
+import cats.implicits._
 import co.ledger.core._
 import co.ledger.core.implicits._
 import co.ledger.wallet.daemon.database.core.WalletPoolDao
 import co.ledger.wallet.daemon.exceptions.ERC20NotFoundException
 import co.ledger.wallet.daemon.libledger_core.async.LedgerCoreExecutionContext
 import co.ledger.wallet.daemon.models.Account.RichCoreAccount
+import co.ledger.wallet.daemon.models.Operations
 import co.ledger.wallet.daemon.models.Operations.OperationView
-import co.ledger.wallet.daemon.models.{AccountInfo, Operations}
 import co.ledger.wallet.daemon.services.AccountOperationsPublisher._
 import co.ledger.wallet.daemon.utils.Utils._
 
@@ -27,8 +27,6 @@ class AccountOperationsPublisher(account: Account, wallet: Wallet, poolName: Poo
   implicit val ec: ExecutionContextExecutor = context.system.dispatchers.lookup("akka.wd-blocking-dispatcher")
 
   private val walletPoolDao = WalletPoolDao(poolName.name)
-
-  private val accountInf = AccountInfo(account.getIndex, wallet.getName, poolName.name)
 
   private var numberOfReceivedOperations: Int = 0
   private val eventReceiver = new AccountOperationReceiver(self)
@@ -72,7 +70,7 @@ class AccountOperationsPublisher(account: Account, wallet: Wallet, poolName: Poo
 
   private def stopListeningEvents(account: Account): Unit = eventReceiver.stopListeningEvents(account.getEventBus)
 
-  private def fetchOperationView(id: OperationId): OptionT[ScalaFuture, OperationView] = OptionT(walletPoolDao.findOperationByUid(accountInf, wallet, id.uid, 0, Int.MaxValue).asScala())
+  private def fetchOperationView(id: OperationId): OptionT[ScalaFuture, OperationView] = OptionT(walletPoolDao.findOperationByUid(account, wallet, id.uid, 0, Int.MaxValue).asScala())
 
   private def fetchErc20OperationView(accUid: Erc20AccountUid, id: OperationId)(implicit ec: ExecutionContext): OptionT[ScalaFuture, OperationView] = {
     val op = account.asEthereumLikeAccount().getERC20Accounts.asScala.find(_.getUid == accUid.uid) match {
