@@ -1,0 +1,361 @@
+database_engine = "postgres"
+database_engine = ${?WALLET_DAEMON_DATABASE_ENGINE}
+core_database_engine = "postgres"
+core_database_engine = ${?CORE_DATABASE_ENGINE}
+
+core = {
+  ops_threads_factor = 4
+  ops_threads_factor = ${?CORE_OPS_THREADS_FACTOR}
+  http_client_retries = 10
+  http_client_retries = ${?CORE_HTTP_RETRIES}
+}
+
+sqlite3 = {
+  url = "jdbc:sqlite:database.db"
+  url = ${?WALLET_JDBC_URL}
+  driver = "org.sqlite.JDBC"
+  connectionPool = disabled
+}
+
+redis = {
+  host = "localhost"
+  host = ${?REDIS_HOST}
+  port = 16379
+  port = ${?REDIS_PORT}
+  password = ${?REDIS_PASSWORD}
+  db = ${?REDIS_DB_NAME}
+  connection_timeout = ${?REDIS_CONNECTION_TIMEOUT}
+}
+
+user-preferences {
+  storage=redis
+  storage=${?PREFERENCES_STORAGE}
+}
+
+postgres = {
+  host = "localhost"
+  host = ${?CORE_PG_HOST}
+  port = "5432"
+  port = ${?CORE_PG_PORT}
+  username = "postgres"
+  username = ${?CORE_PG_USER}
+  password = ""
+  password = ${?CORE_PG_PWD}
+  db_name = "wallet_daemon"
+  db_name = ${?WALLET_DAEMON_DB_NAME}
+  db_name_prefix = "wd_"
+  db_name_prefix = ${?CORE_PG_DB_NAME_PREFIX}
+  pool_size = 10
+  pool_size = ${?CORE_PG_CONNECTION_POOL_SIZE_PER_WALLET_POOL}
+
+  url = "jdbc:postgresql://"${postgres.host}":"${postgres.port}"/"${postgres.db_name}"?user="${postgres.username}"&password="${postgres.password}
+  url = ${?WALLET_JDBC_URL}
+}
+
+proxy = {
+  enabled = false
+  enabled = ${?WALLET_PROXY_ENABLED}
+  host = "myproxy.com"
+  host = ${?WALLET_PROXY_HOST}
+  port = 8080
+  port = ${?WALLET_PROXY_PORT}
+}
+
+h2mem1 = {
+  url = "jdbc:h2:mem:test;DATABASE_TO_UPPER=false;DB_CLOSE_DELAY=-1"
+  connectionPool = disabled
+  keepAliveConnection = true
+  driver="org.h2.Driver"
+  username="sql"
+  password=""
+}
+
+realtimeobservation = true
+
+synchronization = {
+  initial_delay_in_seconds = 120
+  interval_in_hours = 1
+}
+
+demo_users = [
+  {
+    username = "admin"
+    password = "password"
+  }
+]
+
+whitelist = [
+  {
+    key = "03B4A94D8E33308DD08A3A8C937822101E229D85A2C0DFABC236A8C6A82E58076D"
+    account_creation = true
+  },
+  {
+    key = "03F9AD53644DE7C4AFE79A8B653D79643E5FADE621242A7DEFDFCE4745811C0808"
+    account_creation = true
+  },
+  {
+    key = "02ec8147a3b0c72e08aea561ffcf5c3294df0cd34643487deccfc5f5b0d883ed27"
+    account_creation = true
+  },
+  {
+    key = "0335c9f08725f44295f0d50afc29c6cdefdbf0fc831a3c377cac0d000a4836a971"
+    account_creation = true
+  },
+  {
+    key = "03720bab6919be32742bcac3353e3eb8a5acc2b49c06be77f4d63bd0772ad11f98"
+    account_creation = true
+  }
+]
+
+disable_whitelist = true
+
+core_data_path = "core_data"
+
+update_wallet_config = true
+update_wallet_config = ${?WALLET_UPDATE_WALLET_CONFIG}
+
+caching = {
+  balance = {
+    ttl_minute = 1
+    ttl_minute = ${?BALANCE_CACHE_TTL_MIN}
+    max_size = 1000
+    max_size = ${?BALANCE_MAX_SIZE}
+  }
+}
+explorer = {
+  api = {
+    connection_pool_size = 5
+    fallback_timeout = 1000 # ms
+    fallback_timeout = ${?FALLBACK_TIMEOUT}
+    paths = [
+      {
+        currency = default
+        host = "https://api.ledgerwallet.com"
+        port = 443
+        proxyuse = false
+        proxyuse = ${?WALLET_DEFAULT_EXPLORER_PROXYUSE}
+        disable_sync_token = false
+        disable_sync_token = ${?DEFAULT_DISABLE_SYNC_TOKEN}
+      }
+      {
+        currency = bitcoin
+        host = "https://api.ledgerwallet.com"
+        host = ${?WALLET_BTC_EXPLORER_ENDPOINT}
+        port = 443
+        port = ${?WALLET_BTC_EXPLORER_PORT}
+        explorer_version = "v2"
+        explorer_version = ${?WALLET_BTC_EXPLORER_VERSION}
+        proxyuse = false
+        proxyuse = ${?WALLET_BTC_EXPLORER_PROXYUSE}
+        disable_sync_token = false
+        disable_sync_token = ${?BTC_DISABLE_SYNC_TOKEN}
+      }
+      {
+        currency = bitcoin_testnet
+        host = "https://explorer.chainsaw.aws.stg.ldg-tech.com"
+        host = ${?WALLET_BTC_TESTNET_EXPLORER_ENDPOINT}
+        port = 443
+        port = ${?WALLET_BTC_TESTNET_EXPLORER_PORT}
+        explorer_version = "v3"
+        explorer_version = ${?WALLET_BTC_TESTNET_EXPLORER_VERSION}
+        proxyuse = false
+        proxyuse = ${?WALLET_BTC_TESTNET_EXPLORER_PROXYUSE}
+        disable_sync_token = false
+        disable_sync_token = ${?BTC_TESTNET_DISABLE_SYNC_TOKEN}
+      }
+      {
+        currency = ethereum
+        host = "https://explorers.api.live.ledger.com"
+        host = ${?WALLET_ETH_EXPLORER_ENDPOINT}
+        port = 443
+        port = ${?WALLET_ETH_EXPLORER_PORT}
+        explorer_version = "v3"
+        explorer_version = ${?WALLET_ETH_EXPLORER_VERSION}
+        proxyuse = false
+        proxyuse = ${?WALLET_ETH_EXPLORER_PROXYUSE}
+        fallback = "https://mainnet.infura.io/v3/c0c3514370b2454d9e58a001876167af"
+        fallback = ${?WALLET_ETH_EXPLORER_FALLBACK}
+        disable_sync_token = false
+        disable_sync_token = ${?ETH_DISABLE_SYNC_TOKEN}
+      }
+      {
+        currency = ethereum_classic
+        host = "https://explorers.api.live.ledger.com"
+        host = ${?WALLET_ETC_EXPLORER_ENDPOINT}
+        port = 443
+        port = ${?WALLET_ETC_EXPLORER_PORT}
+        explorer_version = "v3"
+        explorer_version = ${?WALLET_ETC_EXPLORER_VERSION}
+        proxyuse = false
+        proxyuse = ${?WALLET_ETC_EXPLORER_PROXYUSE}
+        disable_sync_token = false
+        disable_sync_token = ${?ETC_DISABLE_SYNC_TOKEN}
+      }
+      {
+        currency = ethereum_ropsten
+        host = "https://explorers.api.live.ledger.com"
+        host = ${?WALLET_ETH_ROPSTEN_EXPLORER_ENDPOINT}
+        port = 443
+        port = ${?WALLET_ETH_ROPSTEN_EXPLORER_PORT}
+        explorer_version = "v3"
+        explorer_version = ${?WALLET_ETH_ROPSTEN_EXPLORER_VERSION}
+        proxyuse = false
+        proxyuse = ${?WALLET_ETH_ROPSTEN_EXPLORER_PROXYUSE}
+        fallback = "https://ropsten.infura.io/v3/c0c3514370b2454d9e58a001876167af"
+        fallback = ${?WALLET_ETH_ROPSTEN_EXPLORER_FALLBACK}
+        disable_sync_token = false
+        disable_sync_token = ${?ETH_ROPSTEN_DISABLE_SYNC_TOKEN}
+      }
+      {
+        currency = litecoin
+        host = "https://explorers.api.vault.ledger.com"
+        host = ${?WALLET_LTC_EXPLORER_ENDPOINT}
+        port = 443
+        port = ${?WALLET_LTC_EXPLORER_PORT}
+        explorer_version = "v3"
+        explorer_version = ${?WALLET_LTC_EXPLORER_VERSION}
+        proxyuse = true
+        proxyuse = ${?WALLET_LTC_EXPLORER_PROXYUSE}
+        disable_sync_token = true
+        disable_sync_token = ${?LTC_DISABLE_SYNC_TOKEN}
+      }
+      {
+        currency = ripple
+        host = "https://s2.ripple.com"
+        host = ${?WALLET_XRP_EXPLORER_ENDPOINT}
+        port = 51234
+        port = ${?WALLET_XRP_EXPLORER_PORT}
+        proxyuse = true
+        proxyuse = ${?WALLET_XRP_EXPLORER_PROXYUSE}
+        disable_sync_token = false
+        disable_sync_token = ${?XRP_DISABLE_SYNC_TOKEN}
+      }
+      {
+        currency = stellar
+        host = "https://horizon.stellar.org"
+        host = ${?WALLET_XLM_EXPLORER_ENDPOINT}
+        port = 443
+        port = ${?WALLET_XLM_EXPLORER_PORT}
+        disable_sync_token = false
+        disable_sync_token = ${?XLM_DISABLE_SYNC_TOKEN}
+      }
+    ]
+    fees = [
+      {
+        currency = "bitcoin"
+        path = "/blockchain/v2/btc/fees"
+        path = ${?FEES_BTC_PATH}
+      }
+      {
+        currency = "bitcoin_testnet"
+        path = "/blockchain/v2/btc_testnet/fees"
+        path = ${?FEES_BTC_TESTNET_PATH}
+      }
+      {
+        currency = "dogecoin"
+        path = "/blockchain/v2/doge/fees"
+        path = ${?FEES_DOGE_PATH}
+      }
+      {
+        currency = "litecoin"
+        path = "/blockchain/v2/ltc/fees"
+        path = ${?FEES_LTC_PATH}
+      }
+      {
+        currency = "dash"
+        path = "/blockchain/v2/dash/fees"
+        path = ${?FEES_DASH_PATH}
+      }
+      {
+        currency = "komodo"
+        path = "/blockchain/v2/kmd/fees"
+        path = ${?FEES_KMD_PATH}
+      }
+      {
+        currency = "pivx"
+        path = "/blockchain/v2/pivx/fees"
+        path = ${?FEES_PIVX_PATH}
+      }
+      {
+        currency = "viacoin"
+        path = "/blockchain/v2/via/fees"
+        path = ${?FEES_VIA_PATH}
+      }
+      {
+        currency = "vertcoin"
+        path = "/blockchain/v2/vtc/fees"
+        path = ${?FEES_VTC_PATH}
+      }
+      {
+        currency = "digibyte"
+        path = "/blockchain/v2/dgb/fees"
+        path = ${?FEES_DGB_PATH}
+      }
+      {
+        currency = "bitcoin_cash"
+        path = "/blockchain/v2/abc/fees"
+        path = ${?FEES_ABC_PATH}
+      }
+      {
+        currency = "poswallet"
+        path = "/blockchain/v2/posw/fees"
+        path = ${?FEES_POSW_PATH}
+      }
+      {
+        currency = "stratis"
+        path = "/blockchain/v2/strat/fees"
+        path = ${?FEES_STRAT_PATH}
+      }
+      {
+        currency = "peercoin"
+        path = "/blockchain/v2/ppc/fees"
+        path = ${?FEES_PPC_PATH}
+      }
+      {
+        currency = "bitcoin_gold"
+        path = "/blockchain/v2/btg/fees"
+        path = ${?FEES_BTG_PATH}
+      }
+      {
+        currency = "zcash"
+        path = "/blockchain/v2/zec/fees"
+        path = ${?FEES_ZEC_PATH}
+      }
+      {
+        currency = "qtum"
+        path = "/blockchain/v2/qtum/fees"
+        path = ${?FEES_QTUM_PATH}
+      }
+      {
+        currency = "ethereum"
+        path = "/blockchain/v3/eth/fees"
+        path = ${?FEES_ETH_PATH}
+      }
+      {
+        currency = "ethereum_classic"
+        path = "/blockchain/v3/etc/fees"
+        path = ${?FEES_ETC_PATH}
+      }
+      {
+        currency = "ethereum_ropsten"
+        path = "/blockchain/v3/eth_ropsten/fees"
+        path = ${?FEES_ETH_ROPSTEN_PATH}
+      }
+    ]
+  }
+}
+
+ethereum = {
+  feesfactor = {
+    slow = 0.75
+    slow = ${?ETH_SLOW_FEE_FACTOR}
+    normal = 1.0
+    normal = ${?ETH_NORMAL_FEE_FACTOR}
+    fast = 1.25
+    fast = ${?ETH_FAST_FEE_FACTOR}
+  }
+  gaslimitfactor = 2
+  gaslimitfactor = ${?ETH_GAS_LIMIT_FACTOR}
+}
+
+native_segwit_currencies = ["bitcoin", "bitcoin_testnet", "litecoin", "qtum"]
